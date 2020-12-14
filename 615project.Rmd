@@ -1,0 +1,183 @@
+---
+title: "Final Project 3"
+author: "Lin Zhou"
+date: "12/10/2020"
+output: 
+  pdf_document: default
+urlcolor: blue
+  
+---
+
+```{r}
+library(knitr)
+opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(lubridate)
+library(bizdays)
+library(tidyquant)
+library(tidyr)
+library(magrittr)
+```
+ 
+## portfolio 1
+Suggestion from: https://investorplace.com/2020/06/the-top-15-stocks-to-buy-in-2020/
+```{r}
+#Download the data for stocks' prices from 7/1 ro 12/1
+stock_returns_portfolio1 <- c("FB", "ATVI", "SHOP", "BYND", "NFLX") %>%
+    tq_get(get  = "stock.prices",
+           from = "2020-07-01",
+           to   = "2020-12-01") %>%
+    group_by(symbol) %>%
+    tq_transmute(select     = adjusted, 
+                 mutate_fun = periodReturn, 
+                 period     = "monthly", 
+                 col_rename = "Ra")
+temp1 <- separate(stock_returns_portfolio1, col = date, into = c("year", "month", "day"), sep = "-" )
+month <- c("07", "08", "09", "10", "11")
+returnrate1 <- c()
+#select the data
+for (i in 1:5) {
+  a <- filter(temp1, month == month[i])
+  returnrate1[i] = (sum(a[,5])/5)
+}
+df1 <- data.frame(as.numeric(month), returnrate1)
+names(df1) <- c("month","returnrate")
+#plot the return rate monthly
+df1 %>%
+    ggplot(aes(x = month, y = returnrate)) + 
+    geom_hline(yintercept = 0, color = palette_light()[[1]]) +
+    geom_point(size = 2, color = palette_light()[[3]]) +
+    geom_line(size = 1, color = palette_light()[[3]],group = 1) + 
+    geom_smooth(method = "lm", se = FALSE) +
+    labs(title = "Monthly Returnrates For Portfolio1",
+         x = "", y = "Monthly Returns", color = "") +
+    theme_tq()
+mod1 <- lm(returnrate1 ~ month, df1)
+summary(mod1)
+amount1 <- c()
+x <- 250000
+for (i in 1:5) {
+  amount1[i] <- x * (1 + returnrate1[i])
+  x <- amount1[i]
+}
+mod1 <- lm(returnrate1 ~ month, df1)
+summary(mod1)
+x
+```
+The final return of portfolio one on 12/1 is 265575.27798 dollars if we bought 20% for each stock on 7/1. The coefficient of the month is negative if we fitted the data in simple linear model. It shows that the return rate of the portfolio tends to decrease as month increases. But from the plot of the four month return rate, the total stocks experience a period of decreasing in September and October, it then bounces back in November. 
+
+
+## portfolio 2
+Suggestions from: https://www.fool.com/investing/2020/06/02/3-top-stocks-that-will-make-you-richer-in-june-and.aspx 
+```{r}
+options("getSymbols.warning4.0"=FALSE)
+options("getSymbols.yahoo.warning"=FALSE)
+
+# Downloading Broadcom price using quantmod
+a <- getSymbols("AVGO", from = '2020-07-01',
+           to = "2020-12-01",warnings = FALSE,
+           auto.assign = TRUE)
+
+# Downloading Alexion Pharmaceuticals price using quantmod
+a <- getSymbols("ALXN", from = '2020-07-01',
+           to = "2020-12-01",warnings = FALSE,
+           auto.assign = TRUE)
+
+time <- index(AVGO)
+start_value_AVGO <- AVGO[start(AVGO)]
+start_value_AVGO_n <- as.numeric(start_value_AVGO)
+end_value_AVGO <- AVGO[end(AVGO)]
+end_value_AVGO_n <- as.numeric(end_value_AVGO)
+return_rate_AVGO <- end_value_AVGO_n[4]/start_value_AVGO_n[4]
+close_value_AVGO <- AVGO$AVGO.Close
+close_value_AVGO_n <- as.numeric(close_value_AVGO)
+return_rate_perday <- c()
+start_value_ALXN <- ALXN[start(ALXN)]
+start_value_ALXN_n <- as.numeric(start_value_ALXN)
+end_value_ALXN <- ALXN[end(ALXN)]
+end_value_ALXN_n <- as.numeric(end_value_ALXN)
+return_rate_ALXN <- end_value_ALXN_n[4]/start_value_ALXN_n[4]
+close_value_ALXN <- ALXN$ALXN.Close
+close_value_ALXN_n <- as.numeric(close_value_ALXN)
+for (i in 1:105) {
+  return_rate_perday[i] <- ((close_value_AVGO_n[i+1]/close_value_AVGO_n[i]) + (close_value_ALXN_n[i+1]/close_value_ALXN_n[i])) / 2 -1
+}
+time <- c(time[2:106])
+df2 <- as.data.frame(time,return_rate_perday)
+df2 %>%
+    ggplot(aes(x = time, y = return_rate_perday)) + 
+    geom_hline(yintercept = 0, color = palette_light()[[1]]) +
+    geom_point(size = 2, color = palette_light()[[3]]) +
+    geom_line(size = 1, color = palette_light()[[3]]) + 
+    labs(title = "Daily Returnrates For Portfolio2",
+         x = "", y = "Daily Return Rates", color = "") +
+    theme_tq()
+final_return <- 250000 * (0.5 * return_rate_ALXN + 0.5 * return_rate_AVGO)
+final_return
+```
+The final return of the portfolio two on 12/1 is 296324.42362 dollars if we bought 50% each stock in the portfolio total as 250000 dollars on 7/1. Since most suggestions I found online do not clearly say the precentage, transaction time about the portfolio, I would like to make a shiny app to demonstrate the final return and return rate for different percentages. 
+
+## Portfolio 3
+https://www.fool.com/investing/2020/06/10/3-top-us-stocks-to-buy-in-june.aspx
+
+```{r}
+# Downloading Boyd Gaming price using quantmod
+a <- getSymbols("BYD", from = '2020-07-01',
+           to = "2020-12-01",warnings = FALSE,
+           auto.assign = TRUE)
+# Downloading Dollar General price using quantmod
+a <- getSymbols("DG", from = '2020-07-01',
+           to = "2020-12-01",warnings = FALSE,
+           auto.assign = TRUE)
+# Downloading Hanesbrands price using quantmod
+a <- getSymbols("HBI", from = '2020-07-01',
+           to = "2020-12-01",warnings = FALSE,
+           auto.assign = TRUE)
+
+portfolio_3 <- c("BYD", "DG", "HBI") %>%
+    tq_get(get  = "stock.prices",
+           from = "2020-07-01",
+           to   = "2020-12-01") %>%
+    group_by(symbol) %>%
+    tq_transmute(select     = adjusted, 
+                 mutate_fun = periodReturn, 
+                 period     = "monthly", 
+                 col_rename = "Ra")
+basedline_sp500 <- "^GSPC" %>%
+    tq_get(get  = "stock.prices",
+           from = "2020-07-01",
+           to   = "2020-12-01") %>%
+    tq_transmute(select     = adjusted, 
+                 mutate_fun = periodReturn, 
+                 period     = "monthly", 
+                 col_rename = "Rb")
+wts <- c(0.3, 0.3, 0.4)
+portfolio_returns_monthly <- portfolio_3 %>%
+    tq_portfolio(assets_col  = symbol, 
+                 returns_col = Ra, 
+                 weights     = wts, 
+                 col_rename  = "Ra")
+RaRb_single_portfolio <- left_join(portfolio_returns_monthly, 
+                                   basedline_sp500,
+                                   by = "date")
+CAPM_table <- RaRb_single_portfolio %>%
+    tq_performance(Ra = Ra, Rb = Rb, performance_fun = table.CAPM)
+
+portfolio_returns_monthly %>%
+    ggplot(aes(x = date, y = Ra)) +
+    geom_bar(stat = "identity", fill = palette_light()[[1]]) +
+    labs(title = "Portfolio Returns",
+         subtitle = "30% BYD, 30% DG, and 40% HBI",
+         caption = "Shows an above-zero trend meaning positive returns",
+         x = "", y = "Monthly Returns") +
+    geom_smooth(method = "lm") +
+    theme_tq() +
+    scale_color_tq() +
+    scale_y_continuous(labels = scales::percent)
+y <- 250000
+for (i in 1:5) {
+  y <- y * (1 + portfolio_returns_monthly$Ra[i])
+}
+y
+```
+The final return of the portfolio three on 12/1 is 359956.2 dollars if we bought 30% Boyd Gaming, 30% Dollar General, 40% Hanesbrands total 250000 on 7/1. I choose S&P 500 as baseline. The Ra is the portfolio returns and Rb is the market returns. After doing the perform analysis, the beta of the portfolio is 0.2121 which is smaller than 1. That indicates that the stocks in portfolio as a whole move less than the market.
